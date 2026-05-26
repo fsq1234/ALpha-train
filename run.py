@@ -255,6 +255,14 @@ class Runner(object):
                 "T_out": self.args.frames_out,
             }
             model = get_model(**kwargs)
+        elif self.args.backbone == 'simht':
+            from models.SimHT import get_model
+            kwargs = {
+                "in_shape": (self.args.img_channel, self.args.img_size, self.args.img_size),
+                "T_in": self.args.frames_in,
+                "T_out": self.args.frames_out,
+            }
+            model = get_model(**kwargs)
         elif self.args.backbone == 'alphapre':
             from models.alphapre import get_model
             kwargs = {
