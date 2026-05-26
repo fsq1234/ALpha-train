@@ -100,10 +100,10 @@ def vis_res(pred_seq, gt_seq, save_path, data_type='vil',
 
 
 DATAPATH = {
-    'cikm'     : 'path/to/cikm.h5',
-    'shanghai' : 'path/to/shanghai.h5',
-    'meteo'    : 'path/to/meteo_radar.h5',
-    'sevir'    : 'path/to/sevir2'
+    'cikm'     : '/mnt/sdb1/user/WRF/stlP/data/cikm.h5',
+    'shanghai' : '/mnt/sdb1/user/WRF/stlP/data/shanghai.h5',
+    'meteo'    : '/mnt/sdb1/user/WRF/stlP/data/meteo_radar.h5',
+    'sevir'    : '/mnt/sdb1/user/WRF/stlP/data/offsevir'
 }
 
 def get_dataset(data_name, img_size, seq_len, **kwargs):
