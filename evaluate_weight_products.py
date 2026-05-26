@@ -19,9 +19,9 @@ ALGORITHM_NAME = "SimHT-CINRAD-NMProd-Heavyrain"
 
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run SimHT heavy-rain recognition and log objective metrics")
-    parser.add_argument("--input_dir", default="data", help="Directory containing ZW_MOC data")
-    parser.add_argument("--output_dir", default="output/result", help="Directory for product JSON outputs")
-    parser.add_argument("--log_dir", default="log", help="Log directory")
+    parser.add_argument("--input_dir", default="/input/data", help="Directory containing ZW_MOC data")
+    parser.add_argument("--output_dir", default="/output/result", help="Directory for product JSON outputs")
+    parser.add_argument("--log_dir", default="/log", help="Log directory")
     parser.add_argument("--ckpt", default="weight/ckpt-3068.pt", help="SimHT checkpoint path")
     parser.add_argument("--products", nargs="+", default=["QREF"], choices=["QREF", "CREF", "CAP"])
     parser.add_argument(
