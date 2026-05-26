@@ -587,10 +587,11 @@ class SimHT2_Model(nn.Module):
     def predict(self, frames_in, frames_gt=None, compute_loss=False, **kwargs):
         frames_pred = []
         cur_seq = frames_in.clone()
-        for _ in range(self.T_out // self.T_in):
+        repeat_count = math.ceil(self.T_out / self.T_in)
+        for _ in range(repeat_count):
             cur_seq = self.forward(cur_seq)
             frames_pred.append(cur_seq)
-        frames_pred = torch.cat(frames_pred, dim=1)
+        frames_pred = torch.cat(frames_pred, dim=1)[:, : self.T_out]
         loss = self.MSE_criterion(frames_pred, frames_gt) if compute_loss else None
         return frames_pred, loss
 

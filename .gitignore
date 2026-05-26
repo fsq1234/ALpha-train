@@ -1,3 +1,6 @@
 Exps/
 resources/
 __pycache__/
+data/
+output/
+log/

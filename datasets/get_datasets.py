@@ -103,7 +103,8 @@ DATAPATH = {
     'cikm'     : 'path/to/cikm.h5',
     'shanghai' : 'path/to/shanghai.h5',
     'meteo'    : 'path/to/meteo_radar.h5',
-    'sevir'    : 'path/to/sevir2'
+    'sevir'    : 'path/to/sevir2',
+    'zwmoc'    : 'data/zwmoc_qref.h5',
 }
 
 def get_dataset(data_name, img_size, seq_len, **kwargs):
@@ -128,6 +129,12 @@ def get_dataset(data_name, img_size, seq_len, **kwargs):
         train = Meteo(DATAPATH[data_name], type='train', img_size=img_size)
         val = Meteo(DATAPATH[data_name], type='val', img_size=img_size)
         test = Meteo(DATAPATH[data_name], type='test', img_size=img_size)
+
+    elif dataset_name == 'zwmoc':
+        from .dataset_zwmoc import ZWMOC, gray2color, THRESHOLDS, PIXEL_SCALE
+        train = ZWMOC(DATAPATH[dataset_name], type='train', img_size=img_size)
+        val = ZWMOC(DATAPATH[dataset_name], type='val', img_size=img_size)
+        test = ZWMOC(DATAPATH[dataset_name], type='test', img_size=img_size)
         
     elif dataset_name == 'sevir':
         from .dataset_sevir import SEVIRTorchDataset, gray2color, PIXEL_SCALE, THRESHOLDS
