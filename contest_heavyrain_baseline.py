@@ -99,7 +99,7 @@ def write_result(path: str, date_time: str, features: List[Dict]) -> None:
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ZW_MOC QREF short-term heavy-rain baseline")
     parser.add_argument("--input_dir", default="/input/data", help="Competition input data directory")
-    parser.add_argument("--output_dir", default="/output", help="Competition output directory")
+    parser.add_argument("--output_dir", default="/output/result", help="Competition output directory")
     parser.add_argument("--log_dir", default="/log", help="Competition log directory")
     parser.add_argument("--product", default="QREF", choices=["QREF", "CREF"], help="ZW_MOC product to use")
     parser.add_argument("--threshold_dbz", type=float, default=45.0, help="Reflectivity threshold for regions")
