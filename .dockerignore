@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+Exps/
+data/
+output/
+output_weight_eval*/
+log/
+D_tmp/
+*.zip
