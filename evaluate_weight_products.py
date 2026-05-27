@@ -23,11 +23,18 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output_dir", default="/output/result", help="Directory for product JSON outputs")
     parser.add_argument("--log_dir", default="/log", help="Log directory")
     parser.add_argument("--ckpt", default="weight/ckpt-3068.pt", help="SimHT checkpoint path")
-    parser.add_argument("--products", nargs="+", default=["QREF"], choices=["QREF", "CREF", "CAP"])
+    parser.add_argument("--products", nargs="+", default=["QREF", "CREF", "CAP"], choices=["QREF", "CREF", "CAP"])
     parser.add_argument(
         "--product_output_subdirs",
         action="store_true",
+        default=True,
         help="Write each product under output_dir/product for local multi-product debugging",
+    )
+    parser.add_argument(
+        "--flat_output",
+        dest="product_output_subdirs",
+        action="store_false",
+        help="Write directly under output_dir; only valid when one product is selected",
     )
     parser.add_argument("--cap_levels", nargs="*", type=int, default=None, help="Optional CAP layer indices, e.g. 0 1 2 3 4 5")
     parser.add_argument("--img_size", type=int, default=128)
