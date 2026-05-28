@@ -22,7 +22,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input_dir", default="/input/data", help="Directory containing ZW_MOC data")
     parser.add_argument("--output_dir", default="/output/result", help="Directory for product JSON outputs")
     parser.add_argument("--log_dir", default="/log", help="Log directory")
-    parser.add_argument("--ckpt", default="weight/ckpt-3068.pt", help="SimHT checkpoint path")
+    parser.add_argument("--ckpt", default="weight/ckpt-best.pt", help="SimHT checkpoint path")
     parser.add_argument("--products", nargs="+", default=["CREF"], choices=["QREF", "CREF", "CAP"])
     parser.add_argument("--submission_product", default="CREF", choices=["QREF", "CREF", "CAP"], help="Product written to the official output directory")
     parser.add_argument(
