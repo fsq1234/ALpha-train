@@ -23,18 +23,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output_dir", default="/output/result", help="Directory for product JSON outputs")
     parser.add_argument("--log_dir", default="/log", help="Log directory")
     parser.add_argument("--ckpt", default="weight/ckpt-3068.pt", help="SimHT checkpoint path")
-    parser.add_argument("--products", nargs="+", default=["QREF", "CREF", "CAP"], choices=["QREF", "CREF", "CAP"])
-    parser.add_argument(
-        "--product_output_subdirs",
-        action="store_true",
-        default=True,
-        help="Write each product under output_dir/product for local multi-product debugging",
-    )
+    parser.add_argument("--products", nargs="+", default=["CREF"], choices=["QREF", "CREF", "CAP"])
+    parser.add_argument("--submission_product", default="CREF", choices=["QREF", "CREF", "CAP"], help="Product written to the official output directory")
     parser.add_argument(
         "--flat_output",
-        dest="product_output_subdirs",
-        action="store_false",
-        help="Write directly under output_dir; only valid when one product is selected",
+        action="store_true",
+        help="Deprecated compatibility flag; official output is always written directly under output_dir",
     )
     parser.add_argument("--cap_levels", nargs="*", type=int, default=None, help="Optional CAP layer indices, e.g. 0 1 2 3 4 5")
     parser.add_argument("--img_size", type=int, default=128)
@@ -124,7 +118,7 @@ def confusion_counts(pred_dbz: np.ndarray, target_dbz: np.ndarray, threshold_dbz
     return hits, false_alarms, misses
 
 
-def evaluate_product(args, product: str, model: torch.nn.Module, device: torch.device):
+def evaluate_product(args, product: str, model: torch.nn.Module, device: torch.device, write_json: bool):
     grouped = group_product_files_by_time(args.input_dir, product)
     times = sorted(grouped.keys())
     window_len = args.frames_in + args.frames_out
@@ -181,12 +175,14 @@ def evaluate_product(args, product: str, model: torch.nn.Module, device: torch.d
                 max_polygon_points=args.max_polygon_points,
             )
             date_time = target_grid.obs_time.strftime("%Y%m%d%H%M%S")
-            product_output_dir = os.path.join(args.output_dir, product) if args.product_output_subdirs else args.output_dir
-            result_path = output_path(product_output_dir, date_time)
-            write_result(result_path, date_time, features)
-            logging.info("%s wrote %s with %d regions", product, result_path, len(features))
-            print(f"{product} {date_time} -> {result_path} ({len(features)} regions)")
-            json_count += 1
+            if write_json:
+                result_path = output_path(args.output_dir, date_time)
+                write_result(result_path, date_time, features)
+                logging.info("%s wrote %s with %d regions", product, result_path, len(features))
+                print(f"{product} {date_time} -> {result_path} ({len(features)} regions)")
+                json_count += 1
+            else:
+                logging.info("%s evaluated %s with %d regions; JSON not written", product, date_time, len(features))
 
         processed_files += len(input_times) + len(target_times)
 
@@ -246,25 +242,22 @@ def evaluate_product(args, product: str, model: torch.nn.Module, device: torch.d
 
 def main() -> None:
     args = create_parser().parse_args()
-    if len(args.products) > 1 and not args.product_output_subdirs:
-        raise ValueError(
-            "Multiple products would write the same filenames under one competition output directory. "
-            "Use one final product, or add --product_output_subdirs for local debugging."
-        )
+    if args.submission_product not in args.products:
+        raise ValueError(f"submission_product {args.submission_product} must be included in products {args.products}")
 
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(args.log_dir, exist_ok=True)
     log_path = os.path.join(args.log_dir, f"weight-eval-{datetime.utcnow():%Y%m%d%H%M%S}.log")
     logging.basicConfig(filename=log_path, level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     logging.info(
-        "Algorithm=%s input_dir=%s output_dir=%s log_dir=%s ckpt=%s products=%s product_output_subdirs=%s",
+        "Algorithm=%s input_dir=%s output_dir=%s log_dir=%s ckpt=%s products=%s submission_product=%s",
         ALGORITHM_NAME,
         args.input_dir,
         args.output_dir,
         args.log_dir,
         args.ckpt,
         ",".join(args.products),
-        args.product_output_subdirs,
+        args.submission_product,
     )
 
     device = torch.device(args.device)
@@ -280,7 +273,7 @@ def main() -> None:
 
     all_metrics = []
     for product in args.products:
-        all_metrics.append(evaluate_product(args, product, model, device))
+        all_metrics.append(evaluate_product(args, product, model, device, write_json=(product == args.submission_product)))
     logging.info("SUMMARY %s", all_metrics)
     print(f"log written to {log_path}")
 
