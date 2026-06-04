@@ -8,7 +8,9 @@ __pycache__/
 Exps/
 data/
 output/
+output*/
 output_weight_eval*/
 log/
+weight/
 D_tmp/
 *.zip

@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -14,13 +14,11 @@ RUN apt-get update \
 
 RUN mkdir -p /input/data /output/result /log /app/conf
 
-COPY . /app
+COPY requirements-infer.txt /app/
+RUN python -m pip install --no-cache-dir -r requirements-infer.txt
 
-RUN python -m pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.4.1 \
-    && python -m pip install --no-cache-dir \
-    -r requirements-infer.txt
+COPY . /app
 
 VOLUME ["/input/data", "/output/result", "/log", "/app/conf"]
 
-CMD ["python", "evaluate_weight_products.py", "--input_dir", "/input/data", "--output_dir", "/output/result", "--log_dir", "/log", "--device", "cpu"]
+CMD ["python", "models/main.py", "--input", "/input/data", "--output", "/output", "--log", "/log"]
