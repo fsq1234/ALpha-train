@@ -70,9 +70,6 @@ class CandidateRegion:
     cell_count: int
     mean_rain_rate: float
     max_qref_dbz: float
-    component: np.ndarray
-    row_start: int
-    col_start: int
 
 
 class HeavyRainBaseline:
@@ -95,13 +92,11 @@ class HeavyRainBaseline:
         output_root: Path,
         log_root: Path,
         downsample_factor: int = 4,
-        metric_rain_threshold: float = 20.0,
     ) -> None:
         self.input_root = input_root
         self.output_root = output_root
         self.log_root = log_root
         self.downsample_factor = downsample_factor
-        self.metric_rain_threshold = metric_rain_threshold
         self.prev_mask: np.ndarray | None = None
         self.prev_cref: np.ndarray | None = None
 
@@ -113,19 +108,16 @@ class HeavyRainBaseline:
         logging.info("Found %d overlapping CREF/QREF/CAP timestamps", len(timestamps))
 
         frame_candidates: list[tuple[str, list[CandidateRegion]]] = []
-        truth_masks: dict[str, np.ndarray] = {}
         for timestamp, files in timestamps:
             print(f"Processing {timestamp} ...")
             logging.info("Processing %s", timestamp)
             derived, template = self._build_fields(timestamp, files)
-            truth_masks[timestamp] = derived.rain_rate >= self.metric_rain_threshold
             candidates = self._detect_regions(timestamp, derived, template)
             logging.info("%s candidate_regions=%d", timestamp, len(candidates))
             frame_candidates.append((timestamp, candidates))
 
         selected_map = self._select_candidates_with_ml(frame_candidates)
         selected_map = self._refine_selected_candidates(frame_candidates, selected_map)
-        total_hits = total_false_alarms = total_misses = 0
         json_count = 0
         for timestamp, candidates in frame_candidates:
             selected_candidates = selected_map[timestamp]
@@ -138,44 +130,22 @@ class HeavyRainBaseline:
                 }
                 for candidate in selected_candidates
             ]
-            pred_mask = candidates_to_mask(selected_candidates, truth_masks[timestamp].shape)
-            hits, false_alarms, misses = confusion_counts(pred_mask, truth_masks[timestamp])
-            total_hits += hits
-            total_false_alarms += false_alarms
-            total_misses += misses
             out_path = self._write_output(timestamp, detections)
             json_count += 1
             logging.info(
-                "%s wrote %s with %d regions hits=%d false_alarms=%d misses=%d CSI=%.6f",
+                "%s wrote %s with %d regions",
                 timestamp,
                 out_path,
                 len(detections),
-                hits,
-                false_alarms,
-                misses,
-                csi(hits, false_alarms, misses),
             )
 
         total_seconds = time.perf_counter() - started
-        total_csi = csi(total_hits, total_false_alarms, total_misses)
         avg_seconds = total_seconds / max(json_count, 1)
         logging.info(
-            "METRICS product=QREF+CREF+CAP hits=%d false_alarms=%d misses=%d CSI=%.6f SCSI=N/A LSS=N/A ESS=N/A total_seconds=%.3f processed_files=%d avg_seconds_per_file=%.6f json_count=%d",
-            total_hits,
-            total_false_alarms,
-            total_misses,
-            total_csi,
+            "SUMMARY total_seconds=%.3f processed_times=%d avg_seconds_per_time=%.6f json_count=%d",
             total_seconds,
             len(timestamps),
             avg_seconds,
-            json_count,
-        )
-        logging.info(
-            "SUMMARY {'hits': %d, 'false_alarms': %d, 'misses': %d, 'csi': %.6f, 'json_count': %d}",
-            total_hits,
-            total_false_alarms,
-            total_misses,
-            total_csi,
             json_count,
         )
 
@@ -434,9 +404,6 @@ class HeavyRainBaseline:
                     cell_count=cell_count,
                     mean_rain_rate=mean_rain_rate,
                     max_qref_dbz=max_qref / 10.0,
-                    component=component.copy(),
-                    row_start=slc[0].start or 0,
-                    col_start=slc[1].start or 0,
                 )
             )
 
@@ -772,34 +739,6 @@ def bbox_iou(
     return inter_area / union_area
 
 
-def candidates_to_mask(candidates: list[CandidateRegion], shape: tuple[int, int]) -> np.ndarray:
-    mask = np.zeros(shape, dtype=bool)
-    for candidate in candidates:
-        rows, cols = candidate.component.shape
-        row_end = min(candidate.row_start + rows, shape[0])
-        col_end = min(candidate.col_start + cols, shape[1])
-        if row_end <= candidate.row_start or col_end <= candidate.col_start:
-            continue
-        local_rows = row_end - candidate.row_start
-        local_cols = col_end - candidate.col_start
-        mask[candidate.row_start:row_end, candidate.col_start:col_end] |= candidate.component[:local_rows, :local_cols]
-    return mask
-
-
-def confusion_counts(pred_mask: np.ndarray, target_mask: np.ndarray) -> tuple[int, int, int]:
-    hits = int(np.logical_and(pred_mask, target_mask).sum())
-    false_alarms = int(np.logical_and(pred_mask, ~target_mask).sum())
-    misses = int(np.logical_and(~pred_mask, target_mask).sum())
-    return hits, false_alarms, misses
-
-
-def csi(hits: int, false_alarms: int, misses: int) -> float:
-    denominator = hits + false_alarms + misses
-    if denominator == 0:
-        return 999999.0
-    return hits / denominator
-
-
 def prune_thin_appendages(mask: np.ndarray, protected: np.ndarray, iterations: int = 2) -> np.ndarray:
     pruned = mask.copy()
     kernel = np.ones((3, 3), dtype=np.uint8)
@@ -934,12 +873,6 @@ def parse_args() -> argparse.Namespace:
         default=4,
         help="Max-pooling factor for nationwide mosaics. Larger values are faster but coarser.",
     )
-    parser.add_argument(
-        "--metric-rain-threshold",
-        type=float,
-        default=20.0,
-        help="Rain-rate threshold in mm/h used for self-check CSI logging.",
-    )
     return parser.parse_args()
 
 
@@ -953,19 +886,17 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(message)s",
     )
     logging.info(
-        "Algorithm=HeavyRainBaseline input=%s output=%s log=%s downsample_factor=%d metric_rain_threshold=%.3f",
+        "Algorithm=HeavyRainBaseline input=%s output=%s log=%s downsample_factor=%d",
         args.input,
         args.output,
         args.log,
         args.downsample_factor,
-        args.metric_rain_threshold,
     )
     baseline = HeavyRainBaseline(
         input_root=args.input,
         output_root=args.output,
         log_root=args.log,
         downsample_factor=args.downsample_factor,
-        metric_rain_threshold=args.metric_rain_threshold,
     )
     try:
         baseline.run()
